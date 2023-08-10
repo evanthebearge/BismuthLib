@@ -1,14 +1,5 @@
 package ru.paulevs.bismuthlib;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LevelChunkSection;
 import ru.paulevs.bismuthlib.data.BlockLights;
 import ru.paulevs.bismuthlib.data.SimpleBlockStorage;
 import ru.paulevs.bismuthlib.data.info.LightInfo;
@@ -22,6 +13,15 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import net.minecraft.world.chunk.ChunkSection;
+import net.minecraft.world.chunk.WorldChunk;
 
 public class LightPropagator {
 	private static final Direction[] DIRECTIONS = Direction.values();
@@ -29,29 +29,29 @@ public class LightPropagator {
 	private static final BlockPos[] OFFSETS;
 	
 	private final List<Set<BlockPos>> buffers = new ArrayList<>(2);
-	private final MutableBlockPos[] positions = new MutableBlockPos[35937];
+	private final Mutable[] positions = new Mutable[35937];
 	private final Set<TransformerInfo> transformers = new HashSet<>();
 	private final boolean[] mask = new boolean[35937];
 	private SimpleBlockStorage storage = new SimpleBlockStorage();
-	MutableBlockPos pos = new MutableBlockPos();
+	Mutable pos = new Mutable();
 	
 	public LightPropagator() {
 		buffers.add(new HashSet<>());
 		buffers.add(new HashSet<>());
 		for (int i = 0; i < positions.length; i++) {
-			positions[i] = new MutableBlockPos();
+			positions[i] = new Mutable();
 		}
 	}
 	
-	public void fastLight(Level level, BlockPos sectionPos, int[] data) {
-		if (sectionPos.getY() < level.getMinSection() || sectionPos.getY() > level.getMaxSection()) return;
-		LevelChunk chunk = level.getChunk(sectionPos.getX(), sectionPos.getZ());
+	public void fastLight(World level, BlockPos sectionPos, int[] data) {
+		if (sectionPos.getY() < level.getBottomSectionCoord() || sectionPos.getY() > level.getTopSectionCoord()) return;
+		WorldChunk chunk = level.getChunk(sectionPos.getX(), sectionPos.getZ());
 		if (chunk.getPos().x != sectionPos.getX() || chunk.getPos().z != sectionPos.getZ()) return;
-		LevelChunkSection section = chunk.getSection(sectionPos.getY() - level.getMinSection());
+		ChunkSection section = chunk.getSection(sectionPos.getY() - level.getBottomSectionCoord());
 		if (section == null) return;
 		
-		MutableBlockPos pos = positions[0];
-		MutableBlockPos pos2 = positions[1];
+		Mutable pos = positions[0];
+		Mutable pos2 = positions[1];
 		
 		for (byte x = 0; x < 16; x++) {
 			pos.setX(sectionPos.getX() << 4 | x);
@@ -70,8 +70,8 @@ public class LightPropagator {
 						continue;
 					}
 					
-					if (state.useShapeForLightOcclusion()) {
-						if (state.isCollisionShapeFullBlock(level, pos)) {
+					if (state.hasSidedTransparency()) {
+						if (state.isFullCube(level, pos)) {
 							continue;
 						}
 					}
@@ -89,11 +89,11 @@ public class LightPropagator {
 		}
 	}
 	
-	public void advancedLight(Level level, BlockPos sectionPos, int[] data) {
-		if (sectionPos.getY() < level.getMinSection() || sectionPos.getY() > level.getMaxSection()) return;
-		LevelChunk chunk = level.getChunk(sectionPos.getX(), sectionPos.getZ());
+	public void advancedLight(World level, BlockPos sectionPos, int[] data) {
+		if (sectionPos.getY() < level.getBottomSectionCoord() || sectionPos.getY() > level.getTopSectionCoord()) return;
+		WorldChunk chunk = level.getChunk(sectionPos.getX(), sectionPos.getZ());
 		if (chunk.getPos().x != sectionPos.getX() || chunk.getPos().z != sectionPos.getZ()) return;
-		LevelChunkSection section = chunk.getSection(sectionPos.getY() - level.getMinSection());
+		ChunkSection section = chunk.getSection(sectionPos.getY() - level.getBottomSectionCoord());
 		if (section == null) return;
 		
 		BlockPos secMin = new BlockPos(
@@ -101,7 +101,7 @@ public class LightPropagator {
 			sectionPos.getY() << 4,
 			sectionPos.getZ() << 4
 		);
-		BlockPos secMax = secMin.offset(16, 16, 16);
+		BlockPos secMax = secMin.add(16, 16, 16);
 		
 		int x1 = secMin.getX() - 16;
 		int y1 = secMin.getY() - 16;
@@ -140,9 +140,9 @@ public class LightPropagator {
 		return true;
 	}
 	
-	private void fastFillLight(Level level, int[] data, BlockPos pos, LightInfo info, BlockPos secMin, BlockPos secMax) {
+	private void fastFillLight(World level, int[] data, BlockPos pos, LightInfo info, BlockPos secMin, BlockPos secMax) {
 		int radius = info.getRadius();
-		MutableBlockPos p = positions[0];
+		Mutable p = positions[0];
 		for (int i = -radius; i <= radius; i++) {
 			p.setX(pos.getX() + i);
 			for (int j = -radius; j <= radius; j++) {
@@ -157,7 +157,7 @@ public class LightPropagator {
 		}
 	}
 	
-	private void fillLight(Level level, int[] data, BlockPos pos, LightInfo info, BlockPos secMin, BlockPos secMax, boolean modify) {
+	private void fillLight(World level, int[] data, BlockPos pos, LightInfo info, BlockPos secMin, BlockPos secMax, boolean modify) {
 		Arrays.fill(mask, false);
 		mask[getMaskIndex(MASK_OFFSET, MASK_OFFSET, MASK_OFFSET)] = true;
 		
@@ -176,9 +176,9 @@ public class LightPropagator {
 			
 			for (BlockPos start: starts) {
 				for (Direction offset: DIRECTIONS) {
-					byte maskX = (byte) (start.getX() - pos.getX() + offset.getStepX());
-					byte maskY = (byte) (start.getY() - pos.getY() + offset.getStepY());
-					byte maskZ = (byte) (start.getZ() - pos.getZ() + offset.getStepZ());
+					byte maskX = (byte) (start.getX() - pos.getX() + offset.getOffsetX());
+					byte maskY = (byte) (start.getY() - pos.getY() + offset.getOffsetY());
+					byte maskZ = (byte) (start.getZ() - pos.getZ() + offset.getOffsetZ());
 					
 					if (maskX < -radius || maskY < -radius || maskZ < -radius || maskX > radius || maskY > radius || maskZ > radius) continue;
 					
@@ -196,7 +196,7 @@ public class LightPropagator {
 					LightTransformer transformer = BlockLights.getTransformer(state);
 					if (modify && transformer != null) {
 						int mixedColor = ColorMath.mulBlend(color, transformer.getColor(level, p));
-						transformers.add(new TransformerInfo(new SimpleLight(mixedColor, radius - i, false), p.immutable()));
+						transformers.add(new TransformerInfo(new SimpleLight(mixedColor, radius - i, false), p.toImmutable()));
 						continue;
 					}
 					else if (BlockLights.getLight(state) != null) {
@@ -217,12 +217,12 @@ public class LightPropagator {
 		buffers.get(1).clear();
 	}
 	
-	private boolean blockFace(BlockState state, BlockGetter level, BlockPos pos, Direction dir) {
-		return state.isFaceSturdy(level, pos, dir) || state.isFaceSturdy(level, pos, dir.getOpposite());
+	private boolean blockFace(BlockState state, BlockView level, BlockPos pos, Direction dir) {
+		return state.isSideSolidFullSquare(level, pos, dir) || state.isSideSolidFullSquare(level, pos, dir.getOpposite());
 	}
 	
-	private boolean blockLight(BlockState state, BlockGetter level, BlockPos pos) {
-		return state.getMaterial().isSolidBlocking() || !state.propagatesSkylightDown(level, pos);
+	private boolean blockLight(BlockState state, BlockView level, BlockPos pos) {
+		return state.getMaterial().isSolidBlocking() || !state.isTransparent(level, pos);
 	}
 	
 	private static int getMaskIndex(byte x, byte y, byte z) {
@@ -258,7 +258,7 @@ public class LightPropagator {
 		
 		OFFSETS = positions
 			.stream()
-			.sorted(Comparator.comparingDouble(b -> b.distSqr(Vec3i.ZERO)))
+			.sorted(Comparator.comparingDouble(b -> b.getSquaredDistance(Vec3i.ZERO)))
 			.toList()
 			.toArray(new BlockPos[27]);
 	}

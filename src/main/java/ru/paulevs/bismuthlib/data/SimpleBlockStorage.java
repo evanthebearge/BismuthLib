@@ -1,21 +1,21 @@
 package ru.paulevs.bismuthlib.data;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
-public class SimpleBlockStorage implements BlockGetter {
-	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
-	private MutableBlockPos pos = new MutableBlockPos();
+public class SimpleBlockStorage implements BlockView {
+	private static final BlockState AIR = Blocks.AIR.getDefaultState();
+	private Mutable pos = new Mutable();
 	private BlockState[] storage = new BlockState[110592];
 	
-	public void fill(Level level, int x1, int y1, int z1) {
+	public void fill(World level, int x1, int y1, int z1) {
 		int index = 0;
 		for (byte dx = 0; dx < 48; dx++) {
 			pos.setX(x1 + dx);
@@ -60,7 +60,7 @@ public class SimpleBlockStorage implements BlockGetter {
 	}
 	
 	@Override
-	public int getMinBuildHeight() {
+	public int getBottomY() {
 		return 0;
 	}
 }

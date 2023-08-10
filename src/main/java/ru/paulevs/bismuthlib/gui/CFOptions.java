@@ -5,10 +5,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.OptionInstance;
-import net.minecraft.client.Options;
-import net.minecraft.network.chat.Component;
-
+import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.option.SimpleOption;
+import net.minecraft.text.Text;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -46,39 +45,39 @@ public class CFOptions {
 	private static float floatBrightness = brightness / 64F;
 	private static boolean brightSources = getBool("brightSources", false);
 	
-	public static final OptionInstance<Integer> MAP_RADIUS_XZ = new OptionInstance<>(
+	public static final SimpleOption<Integer> MAP_RADIUS_XZ = new SimpleOption<>(
 		"bismuthlib.options.mapRadiusXZ",
-		OptionInstance.noTooltip(),
+		SimpleOption.emptyTooltip(),
 		(component, integer) -> {
 			int i = integer * 2 + 1;
-			return Options.genericValueLabel(component, Component.translatable("options.biomeBlendRadius." + i));
+			return GameOptions.getGenericValueText(component, Text.translatable("options.biomeBlendRadius." + i));
 		},
-		new OptionInstance.IntRange(1, 7),
+		new SimpleOption.ValidatingIntSliderCallbacks(1, 7),
 		mapRadiusXZ,
 		val -> {
 			setInt("mapRadiusXZ", val);
 			mapRadiusXZ = val;
 		}
 	);
-	public static final OptionInstance<Integer> MAP_RADIUS_Y = new OptionInstance<>(
+	public static final SimpleOption<Integer> MAP_RADIUS_Y = new SimpleOption<>(
 		"bismuthlib.options.mapRadiusY",
-		OptionInstance.noTooltip(),
+		SimpleOption.emptyTooltip(),
 		(component, integer) -> {
 			int i = integer * 2 + 1;
-			return Options.genericValueLabel(component, Component.translatable("bismuthlib.options.mapRadiusY." + i));
+			return GameOptions.getGenericValueText(component, Text.translatable("bismuthlib.options.mapRadiusY." + i));
 		},
-		new OptionInstance.IntRange(1, 7),
+		new SimpleOption.ValidatingIntSliderCallbacks(1, 7),
 		mapRadiusY,
 		val -> {
 			setInt("mapRadiusY", val);
 			mapRadiusY = val;
 		}
 	);
-	public static final OptionInstance<Integer> BRIGHTNESS = new OptionInstance<>(
+	public static final SimpleOption<Integer> BRIGHTNESS = new SimpleOption<>(
 		"bismuthlib.options.brightness",
-		OptionInstance.noTooltip(),
-		(component, i) -> Options.genericValueLabel(component, Component.translatable(String.format(Locale.ROOT, "%.2f", i / 64F))), //Options.genericValueLabel(component, i),
-		new OptionInstance.IntRange(0, 128),
+		SimpleOption.emptyTooltip(),
+		(component, i) -> GameOptions.getGenericValueText(component, Text.translatable(String.format(Locale.ROOT, "%.2f", i / 64F))), //Options.genericValueLabel(component, i),
+		new SimpleOption.ValidatingIntSliderCallbacks(0, 128),
 		brightness,
 		val -> {
 			setInt("brightness", val);
@@ -87,44 +86,44 @@ public class CFOptions {
 		}
 	);
 	
-	private static final OptionInstance<Boolean> FAST_LIGHT = new OptionInstance<>(
+	private static final SimpleOption<Boolean> FAST_LIGHT = new SimpleOption<>(
 		"bismuthlib.options.lightType",
-		OptionInstance.noTooltip(),
-		(component, bool) -> Component.translatable("bismuthlib.options.fastLight." + bool),
-		OptionInstance.BOOLEAN_VALUES,
+		SimpleOption.emptyTooltip(),
+		(component, bool) -> Text.translatable("bismuthlib.options.fastLight." + bool),
+		SimpleOption.BOOLEAN,
 		fastLight,
 		val -> {
 			setBool("fastLight", val);
 			fastLight = val;
 		}
 	);
-	private static final OptionInstance<Integer> THREADS = new OptionInstance<>(
+	private static final SimpleOption<Integer> THREADS = new SimpleOption<>(
 		"bismuthlib.options.threads",
-		OptionInstance.noTooltip(),
-		(component, i) -> Options.genericValueLabel(component, i),
-		new OptionInstance.IntRange(1, 16),
+		SimpleOption.emptyTooltip(),
+		(component, i) -> GameOptions.getGenericValueText(component, i),
+		new SimpleOption.ValidatingIntSliderCallbacks(1, 16),
 		threads,
 		val -> {
 			setInt("threads", val);
 			threads = val;
 		}
 	);
-	private static final OptionInstance<Boolean> MODIFY_COLOR = new OptionInstance<>(
+	private static final SimpleOption<Boolean> MODIFY_COLOR = new SimpleOption<>(
 		"bismuthlib.options.modifyColor",
-		OptionInstance.noTooltip(),
-		(component, bool) -> Component.translatable("bismuthlib.options.modifyColor." + bool),
-		OptionInstance.BOOLEAN_VALUES,
+		SimpleOption.emptyTooltip(),
+		(component, bool) -> Text.translatable("bismuthlib.options.modifyColor." + bool),
+		SimpleOption.BOOLEAN,
 		modifyColor,
 		val -> {
 			setBool("modifyColor", val);
 			modifyColor = val;
 		}
 	);
-	private static final OptionInstance<Boolean> BRIGHT_SOURCES = new OptionInstance<>(
+	private static final SimpleOption<Boolean> BRIGHT_SOURCES = new SimpleOption<>(
 		"bismuthlib.options.brightSources",
-		OptionInstance.noTooltip(),
-		(component, bool) -> Component.translatable("bismuthlib.options.brightSources." + bool),
-		OptionInstance.BOOLEAN_VALUES,
+		SimpleOption.emptyTooltip(),
+		(component, bool) -> Text.translatable("bismuthlib.options.brightSources." + bool),
+		SimpleOption.BOOLEAN,
 		brightSources,
 		val -> {
 			setBool("brightSources", val);
@@ -132,7 +131,7 @@ public class CFOptions {
 		}
 	);
 	
-	public static final OptionInstance[] OPTIONS = new OptionInstance[] {
+	public static final SimpleOption[] OPTIONS = new SimpleOption[] {
 		FAST_LIGHT, THREADS, MODIFY_COLOR, BRIGHT_SOURCES
 	};
 	

@@ -1,8 +1,8 @@
 package ru.paulevs.bismuthlib.data.transformer;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public abstract class LightTransformer {
-	public abstract int getColor(Level level, BlockPos pos);
+	public abstract int getColor(World level, BlockPos pos);
 }

@@ -1,10 +1,10 @@
 package ru.paulevs.bismuthlib.data;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import ru.paulevs.bismuthlib.gui.CFOptions;
 
 public class BlockStorage {
@@ -17,11 +17,11 @@ public class BlockStorage {
 	private static final byte[] FLAGS_INV = new byte[] { 0b110, 0b101, 0b011 };
 	private static final byte MAX = 0b111;
 	
-	private MutableBlockPos pos = new MutableBlockPos();
+	private Mutable pos = new Mutable();
 	private byte[] storage = new byte[110592];
 	private int storedIndex;
 	
-	public void fill(Level level, int x1, int y1, int z1) {
+	public void fill(World level, int x1, int y1, int z1) {
 		storedIndex = 0;
 		for (byte dx = 0; dx < 48; dx++) {
 			pos.setX(x1 + dx);
@@ -57,12 +57,12 @@ public class BlockStorage {
 		return (storage[storedIndex] & FLAGS[index]) == FLAGS[index];
 	}
 	
-	private boolean blockFace(BlockState state, Level level, BlockPos pos, Direction dir) {
-		return state.isFaceSturdy(level, pos, dir) || state.isFaceSturdy(level, pos, dir.getOpposite());
+	private boolean blockFace(BlockState state, World level, BlockPos pos, Direction dir) {
+		return state.isSideSolidFullSquare(level, pos, dir) || state.isSideSolidFullSquare(level, pos, dir.getOpposite());
 	}
 	
-	private boolean blockLight(BlockState state, Level level, BlockPos pos) {
-		return state.getMaterial().isSolidBlocking() || !state.propagatesSkylightDown(level, pos);
+	private boolean blockLight(BlockState state, World level, BlockPos pos) {
+		return state.getMaterial().isSolidBlocking() || !state.isTransparent(level, pos);
 	}
 	
 	private boolean isStored(BlockState state) {

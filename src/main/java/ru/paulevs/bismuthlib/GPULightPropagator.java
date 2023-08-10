@@ -1,27 +1,26 @@
 package ru.paulevs.bismuthlib;
 
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ShaderInstance;
-import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.util.Mth;
 import org.lwjgl.opengl.GL30;
 
 import java.io.IOException;
 import java.util.Random;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
+import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.gl.SimpleFramebuffer;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.util.math.MathHelper;
 
 public class GPULightPropagator {
-	private static ShaderInstance shader;
-	private final RenderTarget[] buffers = new RenderTarget[2];
+	private static ShaderProgram shader;
+	private final Framebuffer[] buffers = new Framebuffer[2];
 	private final int textureSide;
 	private final int dataSide;
 	private byte index;
@@ -29,30 +28,30 @@ public class GPULightPropagator {
 	public GPULightPropagator(int dataWidth, int dataHeight) {
 		if (shader == null) {
 			try {
-				shader = new ShaderInstance(
-					Minecraft.getInstance().getClientPackSource().getVanillaPack().asProvider(),
+				shader = new ShaderProgram(
+					MinecraftClient.getInstance().getServerResourcePackProvider().getVanillaPack().getFactory(),
 					"bismuthlib_gpu_light",
-					DefaultVertexFormat.POSITION_TEX
+					VertexFormats.POSITION_TEXTURE
 				);
 			}
 			catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		dataSide = (int) Math.ceil(Mth.sqrt(dataWidth * dataWidth * dataHeight));
+		dataSide = (int) Math.ceil(MathHelper.sqrt(dataWidth * dataWidth * dataHeight));
 		textureSide = getClosestPowerOfTwo(dataSide << 6);
-		buffers[0] = new TextureTarget(textureSide, textureSide, false, Minecraft.ON_OSX);
-		buffers[1] = new TextureTarget(textureSide, textureSide, false, Minecraft.ON_OSX);
+		buffers[0] = new SimpleFramebuffer(textureSide, textureSide, false, MinecraftClient.IS_SYSTEM_MAC);
+		buffers[1] = new SimpleFramebuffer(textureSide, textureSide, false, MinecraftClient.IS_SYSTEM_MAC);
 		
 		Random random = new Random();
 		NativeImage image = new NativeImage(textureSide, textureSide, false);
 		for (int x = 0; x < textureSide; x++) {
 			for (int y = 0; y < textureSide; y++) {
-				image.setPixelRGBA(x, y, random.nextInt() | (255 << 24));
+				image.setColor(x, y, random.nextInt() | (255 << 24));
 			}
 		}
 		
-		GlStateManager._bindTexture(buffers[0].getColorTextureId());
+		GlStateManager._bindTexture(buffers[0].getColorAttachment());
 		image.upload(0, 0, 0, false);
 	}
 	
@@ -60,33 +59,33 @@ public class GPULightPropagator {
 		int buffer = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
 		//System.out.println(buffer);
 		for (byte i = 0; i < 16; i++) {
-			RenderTarget source = buffers[index];
+			Framebuffer source = buffers[index];
 			index = (byte) ((index + 1) & 1);
-			RenderTarget target = buffers[index];
-			target.bindWrite(true);
-			target.clear(Minecraft.ON_OSX);
+			Framebuffer target = buffers[index];
+			target.beginWrite(true);
+			target.clear(MinecraftClient.IS_SYSTEM_MAC);
 			
 			if (shader != null) RenderSystem.setShader(() -> shader);
 			RenderSystem.setShaderColor(1, 1, 1, 1);
-			RenderSystem.setShaderTexture(0, source.getColorTextureId());
+			RenderSystem.setShaderTexture(0, source.getColorAttachment());
 			
-			BufferBuilder bufferBuilder = Tesselator.getInstance().getBuilder();
-			bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+			BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
+			bufferBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
 			
-			bufferBuilder.vertex(0, textureSide, 0).uv(0.0F, 1.0F).endVertex();
-			bufferBuilder.vertex(textureSide, textureSide, 0).uv(1.0F, 1.0F).endVertex();
-			bufferBuilder.vertex(textureSide, 0, 0).uv(1.0F, 0.0F).endVertex();
-			bufferBuilder.vertex(0, 0, 0).uv(0.0F, 0.0F).endVertex();
+			bufferBuilder.vertex(0, textureSide, 0).texture(0.0F, 1.0F).next();
+			bufferBuilder.vertex(textureSide, textureSide, 0).texture(1.0F, 1.0F).next();
+			bufferBuilder.vertex(textureSide, 0, 0).texture(1.0F, 0.0F).next();
+			bufferBuilder.vertex(0, 0, 0).texture(0.0F, 0.0F).next();
 			
-			BufferUploader.drawWithShader(bufferBuilder.end());
-			target.unbindWrite();
+			BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
+			target.endWrite();
 		}
 		GL30.glBindRenderbuffer(GL30.GL_FRAMEBUFFER, buffer);
 	}
 	
 	public void dispose() {
-		buffers[0].destroyBuffers();
-		buffers[1].destroyBuffers();
+		buffers[0].delete();
+		buffers[1].delete();
 	}
 	
 	private int getClosestPowerOfTwo(int value) {
@@ -105,6 +104,6 @@ public class GPULightPropagator {
 	}
 	
 	public int getTexture() {
-		return buffers[index].getColorTextureId();
+		return buffers[index].getColorAttachment();
 	}
 }

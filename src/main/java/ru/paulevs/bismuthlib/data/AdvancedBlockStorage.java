@@ -1,16 +1,16 @@
 package ru.paulevs.bismuthlib.data;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import ru.paulevs.bismuthlib.data.info.LightInfo;
 import ru.paulevs.bismuthlib.data.transformer.LightTransformer;
 import ru.paulevs.bismuthlib.gui.CFOptions;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 public class AdvancedBlockStorage {
 	private static final Direction[] DIRECTIONS = new Direction[] { Direction.UP, Direction.NORTH, Direction.EAST };
@@ -20,11 +20,11 @@ public class AdvancedBlockStorage {
 	
 	private Map<BlockPos, LightTransformer> transformers = new HashMap<>();
 	private Map<BlockPos, LightInfo> lights = new HashMap<>();
-	private MutableBlockPos pos = new MutableBlockPos();
+	private Mutable pos = new Mutable();
 	private byte[] storage = new byte[110592];
 	private int storedIndex;
 	
-	public void fill(Level level, int x1, int y1, int z1) {
+	public void fill(World level, int x1, int y1, int z1) {
 		storedIndex = 0;
 		for (byte dx = 0; dx < 48; dx++) {
 			pos.setX(x1 + dx);
@@ -37,7 +37,7 @@ public class AdvancedBlockStorage {
 					
 					LightInfo light = BlockLights.getLight(state);
 					if (light != null) {
-						lights.put(pos.immutable(), light);
+						lights.put(pos.toImmutable(), light);
 						storage[storedIndex++] = 0;
 						continue;
 					}
@@ -45,7 +45,7 @@ public class AdvancedBlockStorage {
 					if (CFOptions.modifyColor()) {
 						LightTransformer transformer = BlockLights.getTransformer(state);
 						if (transformer != null) {
-							transformers.put(pos.immutable(), transformer);
+							transformers.put(pos.toImmutable(), transformer);
 							storage[storedIndex++] = 0;
 							continue;
 						}
@@ -68,11 +68,11 @@ public class AdvancedBlockStorage {
 		pos.set(x1, y1, z1);
 	}
 	
-	private boolean blockFace(BlockState state, Level level, BlockPos pos, Direction dir) {
-		return state.isFaceSturdy(level, pos, dir) || state.isFaceSturdy(level, pos, dir.getOpposite());
+	private boolean blockFace(BlockState state, World level, BlockPos pos, Direction dir) {
+		return state.isSideSolidFullSquare(level, pos, dir) || state.isSideSolidFullSquare(level, pos, dir.getOpposite());
 	}
 	
-	private boolean blockLight(BlockState state, Level level, BlockPos pos) {
-		return state.getMaterial().isSolidBlocking() || !state.propagatesSkylightDown(level, pos);
+	private boolean blockLight(BlockState state, World level, BlockPos pos) {
+		return state.getMaterial().isSolidBlocking() || !state.isTransparent(level, pos);
 	}
 }

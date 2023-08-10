@@ -1,10 +1,10 @@
 package ru.paulevs.bismuthlib.mixin;
 
-import net.minecraft.client.Options;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.OptionsScreen;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.option.OptionsScreen;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.option.GameOptions;
+import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,9 +16,9 @@ import ru.paulevs.bismuthlib.gui.CFSettingsScreen;
 
 @Mixin(OptionsScreen.class)
 public abstract class OptionsScreenMixin extends Screen {
-	@Shadow @Final private Options options;
+	@Shadow @Final private GameOptions options;
 	
-	protected OptionsScreenMixin(Component component) {
+	protected OptionsScreenMixin(Text component) {
 		super(component);
 	}
 	
@@ -28,13 +28,13 @@ public abstract class OptionsScreenMixin extends Screen {
 		shift = Shift.AFTER
 	))
 	private void cf_onScreenInit(CallbackInfo info) {
-		this.addRenderableWidget(new Button(
+		this.addDrawableChild(new ButtonWidget(
 			this.width / 2 - 155,
 			this.height / 6 + 120 - 6 + 24,
 			150,
 			20,
-			Component.translatable("bismuthlib.options.settings"),
-			button -> this.minecraft.setScreen(new CFSettingsScreen(this, this.options))
+			Text.translatable("bismuthlib.options.settings"),
+			button -> this.client.setScreen(new CFSettingsScreen(this, this.options))
 		));
 	}
 }

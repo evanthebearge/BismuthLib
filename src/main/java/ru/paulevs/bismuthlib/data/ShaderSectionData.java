@@ -1,9 +1,9 @@
 package ru.paulevs.bismuthlib.data;
 
-import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
 
 public class ShaderSectionData {
-	private final MutableBlockPos position = new MutableBlockPos(0, -1000, 0);
+	private final Mutable position = new Mutable(0, -1000, 0);
 	private final int data[] = new int[4096];
 	
 	public boolean hasCorrectPosition(int x, int y, int z) {

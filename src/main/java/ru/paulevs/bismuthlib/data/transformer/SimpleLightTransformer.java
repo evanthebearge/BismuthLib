@@ -1,7 +1,7 @@
 package ru.paulevs.bismuthlib.data.transformer;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import ru.paulevs.bismuthlib.ColorMath;
 
 public class SimpleLightTransformer extends LightTransformer {
@@ -12,7 +12,7 @@ public class SimpleLightTransformer extends LightTransformer {
 	}
 	
 	@Override
-	public int getColor(Level level, BlockPos pos) {
+	public int getColor(World level, BlockPos pos) {
 		return color;
 	}
 }

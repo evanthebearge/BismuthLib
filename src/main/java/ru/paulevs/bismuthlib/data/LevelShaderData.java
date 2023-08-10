@@ -1,13 +1,13 @@
 package ru.paulevs.bismuthlib.data;
 
-import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.texture.DynamicTexture;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.World;
 import ru.paulevs.bismuthlib.LightPropagator;
 import ru.paulevs.bismuthlib.gui.CFOptions;
 
@@ -19,16 +19,16 @@ import java.util.concurrent.ArrayBlockingQueue;
 public class LevelShaderData {
 	private final Set<BlockPos> updateSections = new HashSet<>();
 	private final Set<BlockPos> delayedSections = new HashSet<>();
-	private final MutableBlockPos lastCenter = new MutableBlockPos();
+	private final Mutable lastCenter = new Mutable();
 	private final ShaderSectionData[][][] data;
-	private final DynamicTexture texture;
+	private final NativeImageBackedTexture texture;
 	private final int textureSide;
 	private final int dataHeight;
 	private final int halfHeight;
 	private final int dataWidth;
 	private final int halfWidth;
 	private final int dataSide;
-	private Level level;
+	private World level;
 	
 	private final ArrayBlockingQueue<BlockPos>[] innerUpdates;
 	private final Thread[] threads;
@@ -50,9 +50,9 @@ public class LevelShaderData {
 			}
 		}
 		
-		this.dataSide = (int) Math.ceil(Mth.sqrt(dataWidth * dataWidth * dataHeight));
+		this.dataSide = (int) Math.ceil(MathHelper.sqrt(dataWidth * dataWidth * dataHeight));
 		textureSide = getClosestPowerOfTwo(dataSide << 6);
-		texture = new DynamicTexture(textureSide, textureSide, false);
+		texture = new NativeImageBackedTexture(textureSide, textureSide, false);
 		this.dataHeight = dataHeight;
 		this.dataWidth = dataWidth;
 		
@@ -90,8 +90,8 @@ public class LevelShaderData {
 	
 	public void resetAll() {
 		if (level == null) return;
-		short hmin = (short) level.getMinSection();
-		short hmax = (short) level.getMaxSection();
+		short hmin = (short) level.getBottomSectionCoord();
+		short hmax = (short) level.getTopSectionCoord();
 		for (int i = 0; i < dataWidth; i++) {
 			int px = lastCenter.getX() - halfWidth + i;
 			for (int j = 0; j < dataWidth; j++) {
@@ -105,7 +105,7 @@ public class LevelShaderData {
 		}
 	}
 	
-	public DynamicTexture getTexture() {
+	public NativeImageBackedTexture getTexture() {
 		return texture;
 	}
 	
@@ -125,7 +125,7 @@ public class LevelShaderData {
 		updateSections.add(new BlockPos(x, y, z));
 	}
 	
-	private boolean updateSection(Level level, int x, int y, int z, boolean force, LightPropagator propagator) {
+	private boolean updateSection(World level, int x, int y, int z, boolean force, LightPropagator propagator) {
 		int indexX = Math.abs(x - lastCenter.getX());
 		int indexY = Math.abs(y - lastCenter.getY());
 		int indexZ = Math.abs(z - lastCenter.getZ());
@@ -147,10 +147,10 @@ public class LevelShaderData {
 			int textureX = (index % dataSide) << 6;
 			int textureY = (index / dataSide) << 6;
 			short dataIndex = 0;
-			NativeImage image = texture.getPixels();
+			NativeImage image = texture.getImage();
 			for (byte j = 0; j < 64; j++) {
 				for (byte i = 0; i < 64; i++) {
-					image.setPixelRGBA(textureX | i, textureY | j, sectionData[dataIndex++]);
+					image.setColor(textureX | i, textureY | j, sectionData[dataIndex++]);
 				}
 			}
 			upload = true;
@@ -159,13 +159,13 @@ public class LevelShaderData {
 		return false;
 	}
 	
-	public void update(Level level, int cx, int cy, int cz) {
+	public void update(World level, int cx, int cy, int cz) {
 		boolean force = level != this.level;
 		this.level = level;
 		if (lastCenter.getX() != cx || lastCenter.getY() != cy || lastCenter.getZ() != cz) {
 			lastCenter.set(cx, cy, cz);
-			short hmin = (short) level.getMinSection();
-			short hmax = (short) level.getMaxSection();
+			short hmin = (short) level.getBottomSectionCoord();
+			short hmax = (short) level.getTopSectionCoord();
 			for (int i = 0; i < dataWidth; i++) {
 				int px = cx - halfWidth + i;
 				for (int j = 0; j < dataWidth; j++) {

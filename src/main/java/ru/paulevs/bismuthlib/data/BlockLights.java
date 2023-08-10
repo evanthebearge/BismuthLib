@@ -1,12 +1,12 @@
 package ru.paulevs.bismuthlib.data;
 
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 import ru.paulevs.bismuthlib.data.info.LightInfo;
 import ru.paulevs.bismuthlib.data.transformer.LightTransformer;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 
 public class BlockLights {
 	private static final Map<BlockState, LightTransformer> TRANSFORMERS = new HashMap<>();
@@ -22,7 +22,7 @@ public class BlockLights {
 	}
 	
 	public static void addLight(Block block, LightInfo light) {
-		block.getStateDefinition().getPossibleStates().forEach(state -> addLight(state, light));
+		block.getStateManager().getStates().forEach(state -> addLight(state, light));
 	}
 	
 	public static LightInfo getLight(BlockState state) {
@@ -34,7 +34,7 @@ public class BlockLights {
 	}
 	
 	public static void addTransformer(Block block, LightTransformer transformer) {
-		block.getStateDefinition().getPossibleStates().forEach(state -> addTransformer(state, transformer));
+		block.getStateManager().getStates().forEach(state -> addTransformer(state, transformer));
 	}
 	
 	public static LightTransformer getTransformer(BlockState state) {

@@ -6,14 +6,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.shaders.Uniform;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
@@ -22,22 +15,29 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.color.block.BlockColor;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.ShaderInstance;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.color.block.BlockColorProvider;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.registry.Registry;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceType;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import ru.paulevs.bismuthlib.commands.PrintCommand;
 import ru.paulevs.bismuthlib.data.BlockLights;
 import ru.paulevs.bismuthlib.data.LevelShaderData;
@@ -64,7 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class BismuthLibClient implements ClientModInitializer {
 	public static final String MOD_ID = "bismuthlib";
 	
-	private static final ResourceLocation LIGHTMAP_ID = new ResourceLocation(MOD_ID, "colored_light");
+	private static final Identifier LIGHTMAP_ID = new Identifier(MOD_ID, "colored_light");
 	private static LevelShaderData data;
 	
 	//private static GPULightPropagator gpuLight;
@@ -83,20 +83,20 @@ public class BismuthLibClient implements ClientModInitializer {
 			int y2 = 100;
 			
 			HudRenderCallback.EVENT.register((matrixStack, delta) -> {
-				Matrix4f matrix = matrixStack.last().pose();
-				RenderSystem.setShader(GameRenderer::getPositionTexShader);
+				Matrix4f matrix = matrixStack.peek().getPositionMatrix();
+				RenderSystem.setShader(GameRenderer::getPositionTexProgram);
 				RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
 				RenderSystem.setShaderTexture(0, LIGHTMAP_ID);
 				//RenderSystem.setShaderTexture(0, gpuLight.getTexture());
-				BufferBuilder bufferBuilder = Tesselator.getInstance().getBuilder();
-				bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+				BufferBuilder bufferBuilder = Tessellator.getInstance().getBuffer();
+				bufferBuilder.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
 				
-				bufferBuilder.vertex(matrix, x1, y2, 0).uv(0.0F, 1.0F).endVertex();
-				bufferBuilder.vertex(matrix, x2, y2, 0).uv(1.0F, 1.0F).endVertex();
-				bufferBuilder.vertex(matrix, x2, y1, 0).uv(1.0F, 0.0F).endVertex();
-				bufferBuilder.vertex(matrix, x1, y1, 0).uv(0.0F, 0.0F).endVertex();
+				bufferBuilder.vertex(matrix, x1, y2, 0).texture(0.0F, 1.0F).next();
+				bufferBuilder.vertex(matrix, x2, y2, 0).texture(1.0F, 1.0F).next();
+				bufferBuilder.vertex(matrix, x2, y1, 0).texture(1.0F, 0.0F).next();
+				bufferBuilder.vertex(matrix, x1, y1, 0).texture(0.0F, 0.0F).next();
 				
-				BufferUploader.drawWithShader(bufferBuilder.end());
+				BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
 			});
 		}
 		
@@ -104,15 +104,15 @@ public class BismuthLibClient implements ClientModInitializer {
 			PrintCommand.register(dispatcher);
 		});
 		
-		final ResourceLocation location = new ResourceLocation(MOD_ID, "resource_reloader");
-		ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
+		final Identifier location = new Identifier(MOD_ID, "resource_reloader");
+		ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
 			@Override
-			public ResourceLocation getFabricId() {
+			public Identifier getFabricId() {
 				return location;
 			}
 			
 			@Override
-			public void onResourceManagerReload(ResourceManager resourceManager) {
+			public void reload(ResourceManager resourceManager) {
 				managerCache = resourceManager;
 				loadBlocks(resourceManager);
 			}
@@ -122,7 +122,7 @@ public class BismuthLibClient implements ClientModInitializer {
 	private static void loadBlocks(ResourceManager resourceManager) {
 		Set<Block> exclude = new HashSet<>();
 		
-		Map<ResourceLocation, Resource> list = resourceManager.listResources("lights", resourceLocation ->
+		Map<Identifier, Resource> list = resourceManager.findResources("lights", resourceLocation ->
 			resourceLocation.getPath().endsWith(".json") && resourceLocation.getNamespace().equals(MOD_ID)
 		);
 		
@@ -133,7 +133,7 @@ public class BismuthLibClient implements ClientModInitializer {
 			JsonObject obj = new JsonObject();
 			
 			try {
-				BufferedReader reader = resource.openAsReader();
+				BufferedReader reader = resource.getReader();
 				obj = GSON.fromJson(reader, JsonObject.class);
 				reader.close();
 			}
@@ -143,11 +143,11 @@ public class BismuthLibClient implements ClientModInitializer {
 			
 			final JsonObject storage = obj;
 			storage.keySet().forEach(key -> {
-				ResourceLocation blockID = new ResourceLocation(key);
-				Optional<Block> optional = Registry.BLOCK.getOptional(blockID);
+				Identifier blockID = new Identifier(key);
+				Optional<Block> optional = Registry.BLOCK.getOrEmpty(blockID);
 				if (optional.isPresent()) {
 					Block block = optional.get();
-					ImmutableList<BlockState> blockStates = block.getStateDefinition().getPossibleStates();
+					ImmutableList<BlockState> blockStates = block.getStateManager().getStates();
 					exclude.add(block);
 					
 					JsonObject data = storage.getAsJsonObject(key);
@@ -157,7 +157,7 @@ public class BismuthLibClient implements ClientModInitializer {
 					else {
 						radiusMap.clear();
 						colorMap.clear();
-						BlockColor provider = null;
+						BlockColorProvider provider = null;
 						int providerIndex = 0;
 						
 						JsonElement element = data.get("color");
@@ -192,7 +192,7 @@ public class BismuthLibClient implements ClientModInitializer {
 						}
 						
 						final int indexCopy = providerIndex;
-						final BlockColor colorCopy = provider;
+						final BlockColorProvider colorCopy = provider;
 						blockStates.forEach(state -> {
 							if (radiusMap.containsKey(state)) {
 								int radius = radiusMap.get(state);
@@ -211,14 +211,14 @@ public class BismuthLibClient implements ClientModInitializer {
 		});
 		
 		Registry.BLOCK.stream().filter(block -> !exclude.contains(block)).forEach(block -> {
-			block.getStateDefinition().getPossibleStates().stream().filter(state -> state.getLightEmission() > 0).forEach(state -> {
+			block.getStateManager().getStates().stream().filter(state -> state.getLuminance() > 0).forEach(state -> {
 				int color = getBlockColor(state);
-				int radius = state.getLightEmission();
+				int radius = state.getLuminance();
 				BlockLights.addLight(state, new SimpleLight(color, radius));
 			});
 		});
 		
-		list = resourceManager.listResources("transformers", resourceLocation ->
+		list = resourceManager.findResources("transformers", resourceLocation ->
 			resourceLocation.getPath().endsWith(".json") && resourceLocation.getNamespace().equals(MOD_ID)
 		);
 		
@@ -227,7 +227,7 @@ public class BismuthLibClient implements ClientModInitializer {
 			JsonObject obj = new JsonObject();
 			
 			try {
-				BufferedReader reader = resource.openAsReader();
+				BufferedReader reader = resource.getReader();
 				obj = GSON.fromJson(reader, JsonObject.class);
 				reader.close();
 			}
@@ -237,11 +237,11 @@ public class BismuthLibClient implements ClientModInitializer {
 			
 			final JsonObject storage = obj;
 			storage.keySet().forEach(key -> {
-				ResourceLocation blockID = new ResourceLocation(key);
-				Optional<Block> optional = Registry.BLOCK.getOptional(blockID);
+				Identifier blockID = new Identifier(key);
+				Optional<Block> optional = Registry.BLOCK.getOrEmpty(blockID);
 				if (optional.isPresent()) {
 					Block block = optional.get();
-					ImmutableList<BlockState> blockStates = block.getStateDefinition().getPossibleStates();
+					ImmutableList<BlockState> blockStates = block.getStateManager().getStates();
 					exclude.add(block);
 					
 					JsonObject data = storage.getAsJsonObject(key);
@@ -250,7 +250,7 @@ public class BismuthLibClient implements ClientModInitializer {
 					}
 					else {
 						colorMap.clear();
-						BlockColor provider = null;
+						BlockColorProvider provider = null;
 						int providerIndex = 0;
 						
 						JsonElement element = data.get("color");
@@ -283,7 +283,7 @@ public class BismuthLibClient implements ClientModInitializer {
 						}
 						
 						final int indexCopy = providerIndex;
-						final BlockColor colorCopy = provider;
+						final BlockColorProvider colorCopy = provider;
 						blockStates.forEach(state -> {
 							if (colorCopy != null) {
 								BlockLights.addTransformer(state, new ProviderLightTransformer(state, colorCopy, indexCopy));
@@ -299,7 +299,7 @@ public class BismuthLibClient implements ClientModInitializer {
 	}
 	
 	private static Map<BlockState, JsonPrimitive> getValues(Block block, final JsonObject values) {
-		ImmutableList<BlockState> states = block.getStateDefinition().getPossibleStates();
+		ImmutableList<BlockState> states = block.getStateManager().getStates();
 		Map<BlockState, JsonPrimitive> result = new HashMap<>();
 		values.keySet().forEach(stateString -> {
 			JsonPrimitive value = values.get(stateString).getAsJsonPrimitive();
@@ -329,7 +329,7 @@ public class BismuthLibClient implements ClientModInitializer {
 		boolean result = false;
 		while (iterator.hasNext()) {
 			Property<?> property = iterator.next();
-			if (property.getName().equals(propertyName) && state.getValue(property).toString().equals(propertyValue)) {
+			if (property.getName().equals(propertyName) && state.get(property).toString().equals(propertyValue)) {
 				result = true;
 				break;
 			}
@@ -345,14 +345,14 @@ public class BismuthLibClient implements ClientModInitializer {
 		if (data == null) {
 			data = new LevelShaderData(w, h, count);
 			//gpuLight = new GPULightPropagator(w, h);
-			Minecraft.getInstance().getTextureManager().register(LIGHTMAP_ID, data.getTexture());
+			MinecraftClient.getInstance().getTextureManager().registerTexture(LIGHTMAP_ID, data.getTexture());
 		}
 		else if (data.getDataWidth() != w || data.getDataHeight() != h || count != data.getThreadCount()) {
 			data.dispose();
 			data = new LevelShaderData(w, h, count);
 			//gpuLight.dispose();
 			//gpuLight = new GPULightPropagator(w, h);
-			Minecraft.getInstance().getTextureManager().register(LIGHTMAP_ID, data.getTexture());
+			MinecraftClient.getInstance().getTextureManager().registerTexture(LIGHTMAP_ID, data.getTexture());
 		}
 		
 		boolean fast = CFOptions.isFastLight();
@@ -368,7 +368,7 @@ public class BismuthLibClient implements ClientModInitializer {
 		}
 	}
 	
-	public static void update(Level level, int cx, int cy, int cz) {
+	public static void update(World level, int cx, int cy, int cz) {
 		data.update(level, cx, cy, cz);
 		//gpuLight.render();
 	}
@@ -379,9 +379,9 @@ public class BismuthLibClient implements ClientModInitializer {
 	
 	public static void bindWithUniforms() {
 		RenderSystem.setShaderTexture(7, LIGHTMAP_ID);
-		ShaderInstance shader = RenderSystem.getShader();
+		ShaderProgram shader = RenderSystem.getShader();
 		
-		Uniform uniform = shader.getUniform("playerSectionPos");
+		GlUniform uniform = shader.getUniform("playerSectionPos");
 		if (uniform != null) {
 			BlockPos center = data.getCenter();
 			uniform.set(center.getX(), center.getY(), center.getZ());
@@ -402,11 +402,11 @@ public class BismuthLibClient implements ClientModInitializer {
 			uniform.set(fastLight ? 1 : 0);
 		}
 		
-		ClientLevel level = Minecraft.getInstance().level;
+		ClientWorld level = MinecraftClient.getInstance().world;
 		if (level != null) {
 			uniform = shader.getUniform("timeOfDay");
 			if (uniform != null) {
-				uniform.set(level.getTimeOfDay(0));
+				uniform.set(level.getSkyAngle(0));
 			}
 		}
 		
@@ -417,9 +417,9 @@ public class BismuthLibClient implements ClientModInitializer {
 	}
 	
 	private static int getBlockColor(BlockState state) {
-		BakedModel model = Minecraft.getInstance().getBlockRenderer().getBlockModel(state);
+		BakedModel model = MinecraftClient.getInstance().getBlockRenderManager().getModel(state);
 		if (model != null) {
-			TextureAtlasSpriteAccessor accessor = (TextureAtlasSpriteAccessor) model.getParticleIcon();
+			TextureAtlasSpriteAccessor accessor = (TextureAtlasSpriteAccessor) model.getParticleSprite();
 			if (accessor != null) {
 				NativeImage[] images = accessor.cf_getImages();
 				if (images != null && images.length > 0) {
@@ -427,7 +427,7 @@ public class BismuthLibClient implements ClientModInitializer {
 				}
 			}
 		}
-		return state.getMaterial().getColor().col;
+		return state.getMaterial().getColor().color;
 	}
 	
 	private static int getAverageBright(NativeImage img) {
@@ -437,7 +437,7 @@ public class BismuthLibClient implements ClientModInitializer {
 		long count = 0;
 		for (int x = 0; x < img.getWidth(); x++) {
 			for (int y = 0; y < img.getHeight(); y++) {
-				int abgr = img.getPixelRGBA(x, y);
+				int abgr = img.getColor(x, y);
 				int r = abgr & 255;
 				int g = (abgr >> 8) & 255;
 				int b = (abgr >> 16) & 255;

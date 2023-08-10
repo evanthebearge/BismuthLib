@@ -1,7 +1,7 @@
 package ru.paulevs.bismuthlib.data.info;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import ru.paulevs.bismuthlib.ColorMath;
 
 public class SimpleLight extends LightInfo {
@@ -32,12 +32,12 @@ public class SimpleLight extends LightInfo {
 	}
 	
 	@Override
-	public int getSimple(Level level, BlockPos pos, byte i) {
+	public int getSimple(World level, BlockPos pos, byte i) {
 		return i == 0 ? simple[0] : i < 7 ? simple[1] : simple[2];
 	}
 	
 	@Override
-	public int getAdvanced(Level level, BlockPos pos, byte i) {
+	public int getAdvanced(World level, BlockPos pos, byte i) {
 		return advanced[i];
 	}
 	

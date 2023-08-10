@@ -1,7 +1,7 @@
 package ru.paulevs.bismuthlib.mixin;
 
-import net.minecraft.client.renderer.chunk.ChunkRenderDispatcher.RenderChunk;
-import net.minecraft.core.BlockPos.MutableBlockPos;
+import net.minecraft.client.render.chunk.ChunkBuilder.BuiltChunk;
+import net.minecraft.util.math.BlockPos.Mutable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -10,9 +10,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.paulevs.bismuthlib.gui.CFOptions;
 
-@Mixin(RenderChunk.class)
+@Mixin(BuiltChunk.class)
 public class RenderChunkMixin {
-	@Shadow @Final private MutableBlockPos origin;
+	@Shadow @Final private Mutable origin;
 	
 	@Inject(method = "setNotDirty", at = @At("HEAD"))
 	private void cf_onSetNotDirty(CallbackInfo info) {

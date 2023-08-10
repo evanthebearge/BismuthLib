@@ -1,11 +1,11 @@
 package ru.paulevs.bismuthlib.mixin;
 
-import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.Sprite;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(TextureAtlasSprite.class)
+@Mixin(Sprite.class)
 public interface TextureAtlasSpriteAccessor {
 	@Accessor("mainImage")
 	NativeImage[] cf_getImages();
